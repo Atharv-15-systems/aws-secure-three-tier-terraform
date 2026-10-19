@@ -1,0 +1,53 @@
+digraph G {
+  rankdir=TB; compound=true; fontname="Helvetica"; nodesep=0.6; ranksep=0.7; dpi=150;
+  node [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="#444444"];
+  edge [fontname="Helvetica", fontsize=9, color="#444444"];
+  labelloc=t; label="Secure Three-Tier Application on AWS (Terraform)"; fontsize=18;
+
+  user [label="Internet Users", shape=oval, fillcolor="#E8E8E8"];
+
+  subgraph cluster_aws {
+    label="AWS Region (ap-south-1)"; style="rounded,dashed"; color="#232F3E"; fontsize=13;
+
+    subgraph cluster_vpc {
+      label="VPC 10.0.0.0/16"; style="rounded"; color="#8C4FFF"; fontsize=13;
+
+      igw [label="Internet Gateway", fillcolor="#D6E4FF"];
+
+      subgraph cluster_public {
+        label="Public Subnets (10.0.1.0/24, 10.0.2.0/24)"; style="rounded,filled"; fillcolor="#EAF6EA"; color="#3F8624";
+        alb [label="Application Load Balancer\nSG: 80 from 0.0.0.0/0", fillcolor="#FFFFFF"];
+        nat [label="NAT Gateway\n(+ Elastic IP)", fillcolor="#FFFFFF"];
+      }
+
+      subgraph cluster_app {
+        label="Private App Subnets (10.0.11.0/24, 10.0.12.0/24)"; style="rounded,filled"; fillcolor="#E6F0FA"; color="#147EBA";
+        ec2 [label="EC2 App Server (no public IP)\nIMDSv2, encrypted EBS, SSM access\nSG: 80 from ALB SG only", fillcolor="#FFFFFF"];
+      }
+
+      subgraph cluster_db {
+        label="Private DB Subnets (10.0.21.0/24, 10.0.22.0/24) - no internet route"; style="rounded,filled"; fillcolor="#FBE9E7"; color="#C7371F";
+        rds [label="RDS MySQL (encrypted)\npublicly_accessible = false\nSG: 3306 from App SG only", fillcolor="#FFFFFF", shape=cylinder];
+      }
+    }
+
+    subgraph cluster_mon {
+      label="Security Monitoring"; style="rounded,filled"; fillcolor="#FFF7E0"; color="#D4A017";
+      fl  [label="VPC Flow Logs\n(ALL traffic)", fillcolor="#FFFFFF"];
+      cw  [label="CloudWatch Logs", fillcolor="#FFFFFF"];
+      ct  [label="CloudTrail\n(multi-region, log validation)", fillcolor="#FFFFFF"];
+      s3  [label="S3 Bucket\n(encrypted, versioned, private)", fillcolor="#FFFFFF"];
+    }
+    sm [label="Secrets Manager\n(DB master password)", fillcolor="#FFFFFF"];
+  }
+
+  user -> igw [label="HTTP"];
+  igw -> alb;
+  alb -> ec2 [label="HTTP :80"];
+  ec2 -> rds [label="MySQL :3306"];
+  ec2 -> nat [label="outbound only", style=dashed];
+  nat -> igw [style=dashed];
+  rds -> sm [style=dotted, label="credentials", arrowhead=none];
+  fl -> cw;
+  ct -> s3;
+}

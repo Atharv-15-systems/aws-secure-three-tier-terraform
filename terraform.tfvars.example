@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars and edit if you want to override defaults
+aws_region   = "ap-south-1"
+project_name = "secure-3tier"
+environment  = "dev"
